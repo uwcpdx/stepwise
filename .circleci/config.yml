@@ -1,0 +1,62 @@
+version: 2.0
+
+jobs:
+  build:
+    working_directory: ~/stepwise
+    machine: true
+    steps:
+      - checkout
+      - save_cache:
+          key: v1-repo-{{ .Environment.CIRCLE_SHA1 }}
+          paths:
+            - ~/stepwise
+      - restore_cache:
+          key: v1-maven-{{ checksum "project.clj" }}
+      - run:
+          name: Pull dependendencies
+          command: docker-compose run --no-deps app lein deps
+      - save_cache:
+          key: v1-maven-{{ checksum "project.clj" }}
+          paths:
+            - ~/.m2
+
+  test:
+    working_directory: ~/stepwise
+    machine: true
+    steps:
+      - restore_cache:
+          key: v1-repo-{{ .Environment.CIRCLE_SHA1 }}
+      - restore_cache:
+          key: v1-maven-{{ checksum "project.clj" }}
+      - run:
+          name: Run tests
+          command: |
+            docker-compose run app sh -c "lein test"
+      - store_test_results:
+          path: ./target/test-results
+
+  publish_clojars:
+    working_directory: ~/stepwise
+    machine: true
+    steps:
+      - restore_cache:
+          key: v1-repo-{{ .Environment.CIRCLE_SHA1 }}
+      - run:
+          name: Publish to Clojars
+          command: lein deploy clojars
+
+workflows:
+  version: 2
+  build_and_test:
+    jobs:
+      - build
+      - test:
+          requires:
+            - build
+      - publish_clojars:
+          requires:
+            - test
+          filters:
+            branches:
+              only: master
+
