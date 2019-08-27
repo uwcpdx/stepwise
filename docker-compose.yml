@@ -1,0 +1,19 @@
+version: "3"
+services:
+  app:
+    build: .
+    volumes:
+      - .:/app
+      - ~/.m2:/root/.m2
+    environment:
+      AWS_ACCESS_KEY_ID:     "local"
+      AWS_SECRET_ACCESS_KEY: "local"
+
+    depends_on:
+      - sfn
+
+  sfn:
+    image: amazon/aws-stepfunctions-local
+    ports:
+      - "8083:8083"
+
